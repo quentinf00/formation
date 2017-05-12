@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="utf-8">
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link rel="stylesheet" href="css/style.css"/>
+    <link rel="stylesheet" href="css/db.css"/>
+    <title>SizeViewer</title>
+</head>
+<body>
+<header>
+    <div class="toolbar">
+        <button id="run" style="display: none">Pause</button>
+        <span id="wtr">Waiting for ...</span>
+    </div>
+    <nav id="nav" style="display: none">
+        <ul>
+            <li>Mode:
+                <ul id="drawMode">
+                </ul>
+            </li>
+            <li></li>
+            <li>Color:
+                <ul id="colorMode">
+                </ul>
+            </li>
+        </ul>
+    </nav>
+    <div class="userInfo">
+        <span id="userName"></span>
+        <button id="singOut" style="display: none">Sign out</button>
+    </div>
+</header>
+<section id="topscreen">
+    <div>
+        <ul>
+            <li class="row">
+                <div class="about">
+                    <img src="favicon.png" class="icon" style="width: 122px"/>
+                    <div>
+                        <h1>SizeViewer</h1>
+                        <div>
+                            <br />
+                            Service to view the used file space in a cloud file storage.<br />
+                            <span style="font-size: 8pt"><u>data will not be used for other purposes or passed on to third organizations</u></span>
+                            <hr style="margin: .5em 0" />
+                            <span style="font-size: 10pt">Powered by <a href="http://d3js.org">D3.js</a>.<br />
+                            Created by <a href="//artzub.com">Artem Zubkov</a>. <a href="https://github.com/artzub/dbsv">On Github</a></span>
+                        </div>
+                    </div>
+                </div>
+            </li>
+            <li><a href="sv/?cloud=db"><img src="//cdn.rawgit.com/artzub/dbsv/master/images/db.ico" alt="Dropbox"/><h1>DropBox</h1></a></li>
+            <li><a href="sv/?cloud=gd"><img src="//cdn.rawgit.com/artzub/dbsv/master/images/gd.ico" alt="GoogleDrive"/><h1>Google Drive</h1></a></li>
+            <li><a href="sv/?cloud=yad"><img src="//cdn.rawgit.com/artzub/dbsv/master/images/yad.png" alt="YandexDisk"/><h1>Yandex Disk</h1></a></li>
+            <li><img style="margin-left: 50px; width: 373px" src="./images/sv.gif" alt="sv.gif"/></li>
+            <li class="row" style="text-align: center"><span id="hidets" style="display: none">Close</span></li>
+        </ul>
+    </div>
+    <span id="showts">about</span>
+</section>
+<section id="canvas"></section>
+<section id="svg"></section>
+
+<!--<script src="//cdnjs.cloudflare.com/ajax/libs/d3/3.3.13/d3.min.js" charset="utf-8"></script>-->
+<script src="//cdnjs.cloudflare.com/ajax/libs/d3/3.4.8/d3.min.js" charset="utf-8"></script>
+<script src="//cdn.rawgit.com/artzub/d3tooltipjs/master/tooltip.js" charset="utf-8"></script>
+<script src="//cdn.rawgit.com/artzub/d3progressbarjs/master/progressbar.js" charset="utf-8"></script>
+<script src="//cdn.rawgit.com/artzub/JSONP/master/JSONP.js" charset="utf-8"></script>
+<script src="js/pathParser.js"></script>
+<script src="js/namespaceSizeViewer.js"></script>
+<!--<script src="//rawgithub.com/artzub/dbsv/master/js/environment.js"></script>-->
+<script>
+    console.log(data);
+    function log(label, data) {
+        if (arguments.length < 2)
+            console.log(label);
+        else
+            console.log(label, data);
+    }
+
+    function logError(error) {
+        log("error", error);
+    }
+</script>
+
+<script src="js/loader.js"></script>
+
+<script>
+
+    'use strict';
+
+    var yakey = "284cdcf7b84346e39b7982985649b689";
+
+    var dbkey = "hf2l7lg3omgwze7";
+
+    var gakey = "601600490264-mtpipnm40ojl25ki9flt12arrqlnhm4d.apps.googleusercontent.com";
+
+    var DEBUG = false;
+
+    var redirectUrl = DEBUG
+            ? "http://localhost:63342/dbsv/index.html"
+            : "https://artzub.com/d3/sv/?cloud=db";
+
+    var PI2 = Math.PI * 2,
+        sizes = {
+            bytes : 1,
+            KB : 1024
+        }
+    ;
+
+    sizes.MB = sizes.KB * 1024;
+    sizes.GB = sizes.MB * 1024;
+    sizes.TB = sizes.GB * 1024;
+    sizes.PB = sizes.TB * 1024;
+
+    var drawMode = {
+        partition : 0,
+        pack : 1,
+        packExtension : 2
+    };
+
+    var colorMode = {
+        path: 0,
+        extension: 1
+    };
+
+    var dirTree = {}
+        , dirTreeDraw = []
+        , dirTreePack = []
+        , requestTurn = []
+        , hashExtId = {}
+        , params = {}
+        , selected
+        , hovered
+        , selectedOld
+        , doStart
+        , loopSnd
+        , loopThd
+        , to = 10
+        , mode = drawMode.partition
+        , cmode = colorMode.path
+        , checkedClass = "checked"
+        , client
+        ;
+
+    var option = {
+        incBar : prgInc,
+        setMaxBar : prgMax,
+        getMaxBar : prgMax,
+        onBeginWaiting : showWaiter,
+        onEndWaiting : hideWaiter,
+        onWork : function(data) {
+            calc(data);
+            console.log(data);
+        },
+        onSingIn : function(data) {
+            d3.select("#singOut")
+                .style("display", null)
+                .on("click", client.singOut);
+            d3.select("#userName")
+                .text(data.name)
+        },
+        onSingOut : function() {
+            d3.select("#singOut")
+                    .style("display", "none");
+            d3.select("#userName")
+                    .text("");
+        },
+        startImmediately : true
+    };
+
+    function prgInc() {
+        progress &&
+        progress.step()
+                .label(progress.pos() + " of " + progress.max());
+    }
+
+    function prgMax(max) {
+        if (!progress)
+            return 0;
+
+        if (arguments.length < 1)
+            return progress.max();
+        progress.max(max);
+        return max;
+    }
+
+    document.location.search.replace("?", "").split("&").forEach(function(d) {
+        d = d.split('=');
+        params[d[0]] = d[1];
+    });
+
+    option.root = params.root;
+
+    switch (params.cloud) {
+        case "db":
+        case "yad":
+        case "gd":
+            hideStart();
+            break;
+    }
+
+    function hideStart() {
+        d3.select("#topscreen").classed("hide", true);
+        d3.select('#nav').style('display', null);
+        hideWaiter();
+    }
+
+    function init() {
+        d3.select("#wtr").style("display", "none");
+
+        if (params.cloud == "db") {
+            client = DropBoxClient(option);
+            client.singIn(dbkey, redirectUrl);
+        }
+        else if (params.cloud == 'yad') {
+            client = YandexDiskClient(option);
+            client.singIn(yakey);
+        }
+        else if (params.cloud == 'gd') {
+            GoogleDriveClient(function() {
+                client = GoogleDriveClient(option);
+                client.singIn(gakey);
+            });
+        }
+    }
+
+    function clickMode(ul, callback) {
+        return function(d) {
+            var item = d3.select(this);
+            var p = ul.node().parentNode;
+            if (p) {
+                var pd = p.__data__;
+                if(pd && pd.sub && (pd.sub.indexOf(d) > -1)) {
+                    d3.select(p.parentNode).selectAll("span").classed(checkedClass, false);
+                    d3.select(p).select("span").classed(checkedClass, true);
+                }
+            }
+            ul.selectAll("span").classed(checkedClass, false);
+            item.classed(checkedClass, true);
+
+            callback && callback(d)
+        };
+    }
+
+    function clickDrawMode(d) {
+        if (mode != d.value) {
+            var temp;
+            if (d.value == drawMode.packExtension || mode == drawMode.packExtension) {
+                temp = selected;
+                selected = selectedOld;
+                selectedOld = temp;
+            }
+
+            client &&
+                    client.getDirTree &&
+            calc(client.getDirTree(), true);
+        }
+        mode = d.value;
+    }
+
+    function clickColorMode(d) {
+        if (cmode != d.value) {
+            client &&
+                    client.getDirTree &&
+            calc(client.getDirTree(), true);
+        }
+        cmode = d.value;
+    }
+
+    function setChecked(d) {
+        return d.value == mode;
+    }
+
+    function name(d) {
+        return d.name;
+    }
+
+    function genMenu(ul, data, onClick) {
+        ul
+            .selectAll("li")
+            .data(data)
+            .enter()
+            .append('li')
+            .append('span')
+            .text(name)
+            .on('click', clickMode(ul, onClick))
+            .each(genSubMenu(onClick))
+            .classed(checkedClass, setChecked)
+        ;
+    }
+
+    function genSubMenu(onClick) {
+        return function(d) {
+            if (!d.sub)
+                return;
+
+            var ul = d3.select(this.parentNode)
+                .append("ul");
+            genMenu(ul, d.sub, onClick);
+        }
+    }
+
+    genMenu(d3.select("#drawMode"), [
+        {
+            name : "Partition",
+            value: drawMode.partition
+        }, {
+            name : "Pack",
+            value: drawMode.pack,
+            sub : [
+                /*{
+                    name : "Path",
+                    value: drawMode.pack
+                },*/ {
+                    name : "Extension",
+                    value: drawMode.packExtension
+                }
+            ]
+        }
+    ], clickDrawMode);
+
+    genMenu(d3.select("#colorMode"), [
+        {name : "Path", value: colorMode.path},
+        {name : "Extension", value: colorMode.extension}
+    ], clickColorMode);
+
+    //TODO: http://bl.ocks.org/mbostock/4348373
+
+    var w = window.innerWidth
+        , h = window.innerHeight
+        , radius
+        , path
+        , cx
+        , cy
+        , useCanvas = !!params.canvas
+        ;
+
+    d3.select("#run").on("click", function() {
+        client.isPaused() ? client.resume() : client.pause();
+        this.innerText = client.isPaused() ? "Start" : "Pause";
+    });
+
+    function showWaiter() {
+        d3.select("#run").style("display", "none");
+        d3.select("#wtr").style("display", null);
+    }
+
+    function hideWaiter() {
+        d3.select("#run").style("display", null);
+        d3.select("#wtr").style("display", "none");
+    }
+
+    var color = d3.scale.category20c();
+    var colorExt = d3.scale.category20c();
+
+    var svg = d3.select("#svg").append("svg")
+            .attr("width", w)
+            .attr("height", h);
+
+    useCanvas && d3.select("#svg").style('pointer-events', 'none');
+    d3.select("#canvas").style('display',useCanvas ? null : 'none');
+
+    var canvas = !useCanvas ? svg : d3.select("#canvas")
+            .append("sv:scene")
+            .attr("width", w)
+            .attr("height", h)
+            .call(d3.helper.sv.init);
+
+    var progress = svg.append("g")
+        .call(d3.helper.progressbar)
+        .width(w)
+        .style("display", params.cloud && params.cloud.length > 0 ? null : "none")
+    ;
+
+    cx = (w / 2);
+    cy = ((h - progress.height() - 10) / 2) + 5;
+
+    progress
+        .textPosition("middle")
+        .attr("transform", "translate(" + [0, h - progress.height()] + ")");
+
+    function resize() {
+        w = window.innerWidth;
+        h = window.innerHeight;
+
+        svg.attr("width", w)
+           .attr("height", h);
+
+        canvas.attr("width", w)
+              .attr("height", h);
+
+        progress.width(w)
+                .attr("transform", "translate(" + [0, h - progress.height()] + ")");
+
+        radius = Math.min(w, h - progress.height() - 10) / 2;
+        y.range([0, radius]);
+
+        pack.size([radius * 2 , radius * 2 ]);
+        packExt.size([radius * 2 , radius * 2 ]);
+
+        xp.range([0, radius * 2]);
+
+        yp.range([0, radius * 2]);
+
+        cx = (w / 2);
+        cy = ((h - progress.height() - 10) / 2) + 5;
+
+        group.attr("transform", "translate(" + [cx, cy] + ")");
+
+        parantsBar.attr("transform", "translate(" + [3, h - progress.height() - 34] + ")");
+
+        if (client && client.getDirTree)
+            calc(client.getDirTree());
+    }
+
+    d3.select(window).on("resize", resize);
+
+    radius = Math.min(w, h - progress.height() - 10) / 2;
+
+    var x = d3.scale.linear()
+            .range([0, PI2]);
+
+    var y = d3.scale.sqrt()
+            .range([0, radius]);
+
+    var xp = d3.scale.linear()
+            .range([0, radius * 2]);
+
+    var yp = d3.scale.linear()
+            .range([0, radius * 2]);
+
+    var group = canvas.insert((useCanvas ? "sv:" : "") + "g", ':first-child')
+            .attr("transform", "translate(" + [cx, cy] + ")");
+
+    var parantsBar = svg.append("g")
+        .style('pointer-events', 'all')
+        .attr("transform", "translate(" + [3, h - progress.height() - 34] + ")");
+
+    var filesInfo = svg.append("g");
+
+    var partition = d3.layout.partition()
+            .value(function(d) { return d.size || 0; })
+            ;
+
+    var pack = d3.layout.pack()
+            .size([radius * 2, radius * 2])
+            .padding(1)
+            .value(function(d) { return d.size || 0; })
+            ;
+
+    var packExt = d3.layout.pack()
+            .size([radius * 2, radius * 2])
+            .padding(.5)
+            .children(function(d) { return d.values; })
+            .value(function(d) { return d.size || 0; })
+            ;
+
+    var arc = d3.svg.arc()
+        .startAngle(startAngle)
+        .endAngle(endAngle)
+        .innerRadius(innerRadius)
+        .outerRadius(outerRadius);
+
+    function startAngle(d) { return Math.max(0, Math.min(PI2, x(d.x))); }
+    function endAngle(d) { return Math.max(0, Math.min(PI2, x(d.x + d.dx))); }
+    function innerRadius(d) { return Math.max(0, y(d.y)); }
+    function outerRadius(d) { return Math.max(0, y(d.y + d.dy)); }
+
+    var arcCircle = function(d) {
+        var r = d.r
+            , x = d.x - radius
+            , y = d.y - radius
+            ;
+        return circle(r, x, y);
+    };
+
+    function circle(r, x, y) {
+        return "M " + x + " " + y + " m -" + r + ", 0 a " + [r,r] + " 0 1,1 " + (r * 2) + ",0 a " + [r,r] + " 0 1,1 -" + (r * 2) + ",0";
+    }
+
+    function select(d) {
+        return function(a, b) {
+            return a || (b.seqid === d.seqid ? b : null);
+        }
+    }
+
+    function getExtension(d) {
+        return d.type || "none";
+    }
+
+    function filterForPackExtension(d) {
+        return d.hasOwnProperty("size") && d.seqid > -2;
+    }
+
+    function initExtDir(d) {
+        if (!d.values)
+            return;
+
+        d.isDir = true;
+        d.seqid = hashExtId[d.key] || (hashExtId[d.key] = client.getNextId());
+        d.name = d.key;
+        d.path = d.name;
+    }
+
+    function getExtRoot(data) {
+        data.forEach(initExtDir);
+
+        return {seqid: -2, key : "/", values: data};
+    }
+
+    function calc(data, needClick) {
+        if (!loopSnd) {
+            var clone = JSON.parse(JSON.stringify(data));
+            loopSnd = setTimeout(function() {
+
+                var tempSel = selected
+                    , temp
+                    ;
+
+                dirTreeDraw = mode === drawMode.partition ?
+                    partition(clone) :
+                    pack(clone);
+
+                if (mode === drawMode.packExtension) {
+                    clone = d3.nest()
+                            .key(getExtension)
+                            .entries(dirTreeDraw.filter(filterForPackExtension));
+
+                    dirTreeDraw = packExt(getExtRoot(clone));
+                }
+
+                if (selected && mode === drawMode.partition && needClick)
+                    selected = selected.parent;
+
+                update();
+
+                if (mode === drawMode.partition && needClick) {
+                    temp = dirTreeDraw[0];
+                    selected = tempSel;
+                    if (selected)
+                        temp = dirTreeDraw.reduce(select(selected), null);
+                    selected = null;
+                    click(temp, false);
+                }
+
+                loopSnd = null;
+            }, to);
+        }
+    }
+
+    function lazyUpdate() {
+        if (!loopThd) {
+            loopThd = setTimeout(function() {
+                update();
+                loopThd = null;
+            }, to);
+        }
+    }
+
+    var tf = d3.format('.2f');
+
+    function formatSize(d) {
+        var s = sizes.B,
+            af = " B";
+
+        if (d < sizes.MB) {
+            s = sizes.KB;
+            af = " KB";
+        }
+        else if (d < sizes.GB) {
+            s = sizes.MB;
+            af = " MB";
+        }
+        else if (d < sizes.TB) {
+            s = sizes.GB;
+            af = " GB";
+        }
+        else if (d < sizes.PB) {
+            s = sizes.TB;
+            af = " TB";
+        }
+        else if (d > sizes.PB) {
+            s = sizes.PB;
+            af = " PB";
+        }
+
+        return tf((d/s) || 0) + af;
+    }
+
+    var tooltip = d3.helper.tooltip()
+        .padding(16)
+        .spaceWidth(w)
+        .spaceHeight(h)
+        .text(function(d) {
+            var img = [];
+            switch (params.cloud) {
+                case "db":
+                    img = [
+                        "<img src='https://www.dropbox.com/static/images/icons/icon_spacer.gif' class='",
+                        d.icon,
+                        "'>"
+                    ];
+                    break;
+                case "gd":
+                    img = [
+                        "<img src='",
+                        d.icon,
+                        "' class='icon'>"
+                    ];
+                    break;
+            }
+            return [
+                img.join(""),
+                "<div style='overflow: hidden'>Name: <b>",
+                d.name,
+                "</b><br/>Path: <b>",
+                d.path,
+                "</b><br/>Size: <b>",
+                formatSize(d.value),
+                d.type && d.type.length > 0 ? "</b><br/>MimeType: <b>" : "",
+                d.type,
+                "</b><br/></div>"
+            ].join("")
+        })
+    ;
+    function toRgba(c, a) {
+        c = d3.rgb(typeof c === 'string' ? c.replace('rgba', 'rgb') : c);
+        return "rgba(" + [c.r, c.g, c.b, a] + ")";
+    }
+
+    function fill(d) {
+        var extCol = cmode === colorMode.extension || mode === drawMode.packExtension;
+
+        var curColor = extCol ? colorExt : color;
+
+        var prop = "path";
+        var k = d.seqid === -2 ? "~root~" : "";
+        var fs = d.seqid === -1 || (d[prop] && d[prop].indexOf("FreeSpace") > -1);
+
+        if (d.seqid > -1)
+            if (extCol) {
+                prop = "type";
+                if (mode === drawMode.packExtension && d.hasOwnProperty("key"))
+                    prop = "key";
+                k = d[prop];
+            }
+            else {
+                k = (d.children ? d : d.parent)[prop];
+            }
+
+        !k && (k = "folder");
+
+        var c = fs ? toRgba("#444", .1) : curColor(k);
+        c = !fs && mode !== drawMode.partition && d.isDir ? toRgba(d3.rgb(c).darker(.1), useCanvas ? .8 : 1) : c;
+        c = hovered === d ? (mode !== drawMode.partition && d.seqid !== -2 ? toRgba('#fff', .8) : toRgba(c, .3)) : c;
+        return c;
+    }
+
+    function disSet(d) {
+        return filter(d) ? null : "none";
+    }
+
+    function key(d) {
+        return "path" + d.seqid;
+    }
+
+    function checkIsParent(d, k) {
+        for(; d && k; d = d.parent)
+            if(d.seqid === k.seqid)
+                return true;
+        return false;
+    }
+
+    function filter(d) {
+        return d.value > 0 && (mode == drawMode.packExtension || (!selected ? d.level < 4 : d.level < selected.level + 4))
+            && (!selected || mode == drawMode.pack || mode == drawMode.packExtension || (
+                checkIsParent(d, selected) ||
+                    (selected.parent && (d.seqid == selected.parent.seqid || (
+                        selected.parent.parent && d.seqid == selected.parent.parent.seqid)
+                    ))
+            ));
+    }
+
+    function filterPack(k, xp, yp) {
+        return function (d) {
+            function visible(m) {
+                if (!m)
+                    return false;
+
+                var r = m.r * k
+                        , x = xp(m.x)
+                        , y = yp(m.y)
+                        , cr = Math.sqrt(Math.pow(w / 2, 2) + Math.pow(h / 2, 2))
+                        , dr = Math.sqrt(Math.pow((w / 2 - x), 2) + Math.pow(h / 2 - y, 2)) - r
+                        ;
+
+                return dr < cr;
+            }
+
+            return filter(d) && (visible(d) || (d.children && visible(d.children[0])));
+        }
+    }
+
+    function sortPath(a, b) {
+        return d3.ascending(a.depth, b.depth);
+    }
+
+    function isDir(d) {
+        return d.isDir || d.seqid === -2;
+    }
+
+    function mm() {
+        var method = d3.select(this).on('mousemove.tooltip');
+        method && method.apply(this, arguments);
+    }
+
+    function mout() {
+        var method = d3.select(this).on('mouseout.tooltip');
+        method && method.apply(this, arguments);
+        d3.select(document.body).style('cursor', null);
+        if (hovered) {
+            hovered = null;
+            path.attr("fill", fill);
+            canvas.invalidate();
+        }
+    }
+
+    function mover(d) {
+        var method = d3.select(this).on('mouseover.tooltip');
+        method && method.apply(this, arguments);
+        d3.select(document.body).style('cursor', d.isDir ? 'pointer' : null);
+        mm.apply(this, arguments);
+
+        if (hovered !== d) {
+            hovered = d;
+            path.attr("fill", fill);
+            canvas.invalidate();
+        }
+    }
+
+    function update() {
+
+        updateParentsBar(getParentsStack(selected || dirTreeDraw[0]));
+
+        var temp = selected;
+        //if (mode !== drawMode.partition)
+        //selected = null;
+
+        path = group.selectAll("path")
+            .data(dirTreeDraw.filter(filter), key);
+
+        var ps = path.enter()
+            .append((useCanvas ? "sv:" : "") + "path");
+        ps.attr("id", key)
+            .attr('stroke', "#fff")
+            .call(tooltip)
+            .filter(isDir)
+            .on("click", click)
+            .attr("class", "isdir")
+        ;
+
+        if (mode !== drawMode.partition)
+            ps.attr("d", function(d) { return arcCircle({r : 0, x : d.x, y: d.y}); });
+
+        useCanvas && ps.on('mousemove', mm)
+            .on('mouseout', mout)
+            .on('mouseover', mover)
+        ;
+
+        path.exit().remove();
+
+        group.classed("packMode", mode == drawMode.pack);
+
+        (mode != drawMode.partition) && path.sort(sortPath);
+
+        selected = temp;
+        path.attr("fill", fill);
+
+        if (/*mode !== drawMode.partition && */temp)
+            selected = dirTreeDraw.reduce(select(temp), null);
+
+        mode !== drawMode.partition
+        ? zoom(selected || dirTreeDraw[0])
+        : click(selected, false)
+        ;
+
+        useCanvas && canvas.invalidate();
+    }
+
+    function click(d, ignore) {
+        d3.event && d3.event.stopPropagation();
+        if (mode == drawMode.partition) {
+            useCanvas && canvas.invalidAlways();
+            if((!selected && d) || (d && d.seqid !== selected.seqid)) {
+                path.transition()
+                    .duration(750)
+                    .attrTween("d", arcTween(d))
+                    .each("end", function () {
+                        useCanvas &&
+                        canvas.invalidOnce().invalidate();
+                        if (ignore === false)
+                            lazyUpdate();
+                        else
+                            calc(client.getDirTree());
+                    });
+            }
+            else {
+                d = d || dirTreeDraw[0];
+                x.domain([d.x, d.x + d.dx]);
+                y.domain([d.y, 1])
+                    .range([d.y ? 20 : 0, radius]);
+                path.attr('d', arc);
+            }
+        } else if (mode == drawMode.pack || mode == drawMode.packExtension) {
+            zoom(selected && d.seqid == selected.seqid ? d.parent ? d.parent : dirTreeDraw[0] : d, ignore);
+        }
+    }
+
+    function test() {
+        calc(client.getDirTree());
+    }
+
+    function hidets() {
+        d3.select("#topscreen").classed("hide", true);
+    }
+
+    d3.select("#showts").on("click", function() {
+        d3.select("#topscreen").classed("hide", false);
+        d3.select("#hidets").style("display", null).on("click", hidets);
+    });
+
+    // Interpolate the scales!
+    function arcTween(d) {
+        var xd = d3.interpolate(x.domain(), [d.x, d.x + d.dx]),
+                yd = d3.interpolate(y.domain(), [d.y, 1]),
+                yr = d3.interpolate(y.range(), [d.y ? 20 : 0, radius]);
+        selected = d;
+        if (d.seqid === -2)
+            selected = null;
+        updateParentsBar(getParentsStack(selected || dirTreeDraw[0]));
+        return function(d, i) {
+            return i
+                    ? function(t) { return arc(d); }
+                    : function(t) { x.domain(xd(t)); y.domain(yd(t)).range(yr(t)); return arc(d); };
+        };
+    }
+
+    function tweenCircle(k, xp, yp) {
+        return function(m) {
+            return circle(k * m.r, xp(m.x) - radius, yp(m.y) - radius);
+        }
+    }
+
+    function zoom(d, ignore) {
+        var old = selected;
+        var that = this;
+        selected = d;
+
+        updateParentsBar(getParentsStack(selected || dirTreeDraw[0]));
+
+        if (d.seqid == -2) {
+            selected = null;
+        }
+
+        var arcCircleOld = old ? tweenCircle(
+            radius / old.r,
+            xp.copy().domain([old.x - old.r, old.x + old.r]),
+            yp.copy().domain([old.y - old.r, old.y + old.r])
+        ) : null;
+
+        var k = radius / d.r;
+        xp.domain([d.x - d.r, d.x + d.r]);
+        yp.domain([d.y - d.r, d.y + d.r]);
+
+        var arcCircleNew = tweenCircle(k, xp, yp);
+
+        if (mode == drawMode.pack) {
+            path = group.selectAll("path")
+                    .data(dirTreeDraw.filter(filterPack(k, xp, yp)), key);
+
+            var ps = path.enter()
+                    .append((useCanvas ? "sv:" : "") + "path");
+            ps.attr("id", key)
+                .attr('stroke', "#fff")
+                .call(tooltip)
+                .attr("d", old ? arcCircleOld : arcCircle)
+                .filter(isDir)
+                .on("click", click)
+                .attr("class", "isdir")
+            ;
+
+            useCanvas && ps.on('mousemove', mm)
+                .on('mouseout', mout)
+                .on('mouseover', mover)
+            ;
+
+            path.exit().remove();
+
+            group.classed("packMode", true);
+
+            path.sort(sortPath);
+
+            path.attr("fill", fill);
+        }
+
+        useCanvas && canvas.invalidAlways();
+        path.transition()
+            .duration(750)
+            .attr("d", selected ? arcCircleNew : arcCircle)
+            .each('end', function(){
+                useCanvas &&
+                    canvas.invalidOnce().invalidate();
+            })
+        ;
+    }
+
+    function getParentsStack(selected) {
+        var result = []
+            ;
+
+        for(;selected; selected = selected.parent)
+            result.push(selected);
+
+        return result.reverse();
+    }
+
+    function pathClick(d) {
+        click(d);
+    }
+
+    var lastPathWidth = 0;
+    function pathForPath(d, i) {
+        var g = d3.select(this)
+            , wt
+            ;
+
+        if (g.selectAll('*').empty()) {
+            g.attr('transform', 'translate(' + [lastPathWidth, 0] + ')');
+            wt = g.append('text')
+                    .style('pointer-events', 'none')
+                    .attr('transform', 'translate(' + (i ? 10 : 5 ) + ', 14)')
+                    .attr('dy', '0.35em')
+                    .attr('font-size', '14px')
+                    .attr('fill', '#f9f9f9')
+                    .text(d.seqid === -2 ? 'root' : d.name)
+                    .node();
+            wt = (wt.clientWidth || wt.getComputedTextLength()) + (i ? 10 : 5);
+            g.insert('polygon', ':first-child')
+                    .attr('points', function (d) {
+                        return [
+                            '0,0 ',
+                            wt,
+                            ',0 ',
+                                    wt + 8,
+                            ',15 ',
+                            wt,
+                            ',30 0,30',
+                            (i ? ' 8,15' : '')
+                        ].join('');
+                    })
+                    .attr('fill', fill(d))
+                    .attr('stroke', "#f9f9f9")
+            ;
+        }
+        else {
+            wt = g.select('text').node();
+            wt = (wt.clientWidth || wt.getComputedTextLength()) + (i ? 10 : 5);
+            g.select('polygon').attr('fill', fill(d));
+        }
+
+        lastPathWidth += wt + 3;
+    }
+
+    function updateParentsBar(stack) {
+        if(!stack || !stack.length)
+            parantsBar.selectAll('g').remove();
+
+        var paths = parantsBar.selectAll('g')
+            .data(stack, key);
+
+        lastPathWidth = 0;
+        paths.enter().append('g')
+            .attr('class', 'isdir')
+            .on('click', pathClick);
+
+        paths.exit().remove();
+
+        paths.each(pathForPath);
+    }
+
+    init();
+
+</script>

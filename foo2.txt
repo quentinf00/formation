@@ -1,0 +1,489 @@
+
+<style> .node circle {
+  fill: #999;
+}
+
+.node text {
+  font: 10px sans-serif;
+}
+
+.node--internal circle {
+  fill: #555;
+}
+
+.node--internal text {
+  text-shadow: 0 1px 0 #fff, 0 -1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff;
+}
+
+.link {
+  fill: none;
+  stroke: #555;
+  stroke-opacity: 0.4;
+  stroke-width: 1.5px;
+} </style>
+<svg id="graph-div" height=2000></svg>
+<script> 
+require.config({
+    paths: {
+        d3: "https://d3js.org/d3.v4.min"
+    }
+});
+
+require(["d3"], function(d3) {
+
+var margin = {top: 20, right: 20, bottom: 30, left: 40},
+// ****    width = 960 - margin.left - margin.right, ****
+// ****    height = 500 - margin.top - margin.bottom; ****
+    width = 720 - margin.left - margin.right,
+    height = 375 - margin.top - margin.bottom;
+    
+console.log('coucouc');
+
+console.log(d3);
+var stratify = d3.stratify()
+    .parentId(function(d) { return d.id.substring(0, d.id.lastIndexOf(".")); });
+
+var tree = d3.cluster()
+    .size([height, width - 160]);
+    
+var svg = d3.select("#graph-div")
+    g = svg.attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+   
+  data = [
+    {
+        "id": "root", 
+        "value": ""
+    }, 
+    {
+        "id": "root.exports", 
+        "value": ""
+    }, 
+    {
+        "id": "root.exports.exportListTrademarks_6804e7c01437e3fe51490a543ccdf207", 
+        "value": ""
+    }, 
+    {
+        "id": "root.exports.exportListTrademarks_e783ec79c423a2bb363a8894c157442e", 
+        "value": ""
+    }, 
+    {
+        "id": "root.exports.exportListTrademarks_4b03744fe0e286775e1e2cb69a185227", 
+        "value": ""
+    }, 
+    {
+        "id": "root.exports.exportListTrademarks_1e4c7ad4e03d54f64123f8a9f26c97a7", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.config", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.config.app", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.config.security", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.config.cache", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.config.frontendConfiguration", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.config.settings", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.config.factories", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.config.filters", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.config.i18n", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.config.routing", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.config.view", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.lib", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.lib.BaseGeneratorHelper", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.lib.myConfigServeur", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.lib.myUser", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.i18n", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.i18n.en", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.i18n.en.sf_admin", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.i18n.en.messages", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.i18n.en.external", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.i18n.en.sf_guard", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.i18n.fr", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.i18n.fr.sf_admin", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.i18n.fr.messages", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.i18n.fr.external", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.i18n.fr.sf_guard", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.templates", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.templates._menuPrincipal", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.templates._footer", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.templates._flashes", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.templates._mail_signature", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.templates.layout_with_jquery-1.8", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.templates._modal_error", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.templates.printWhois", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.templates.layout", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.templates._modal_header", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.templates.layout_with_jquery-1", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.templates.login", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.templates.print", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.templates._sousMenu", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.compte", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.compte.config", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.compte.config.security", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.compte.templates", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.compte.templates._list_recherches", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.compte.templates._form_recherche", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.compte.templates._new_zone_recherche", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.compte.templates._form_recherche_name", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.compte.templates._tab_selected_pays", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.compte.templates._list_zones_recherche", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.compte.templates._edit_zone_recherche", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.compte.templates._tr_selected_pays", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.compte.templates._fields", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.compte.templates._checkbox_fields_pays_zones", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.compte.templates.newRechercheSuccess", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.compte.templates.paramSuccess", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.compte.templates._form_zone_recherche", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.compte.templates._form_param", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.compte.actions", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.compte.actions.actions", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.utilisateurs", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.utilisateurs.config", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.utilisateurs.config.security", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.utilisateurs.config.generator", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.utilisateurs.lib", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.utilisateurs.lib.utilisateursGeneratorConfiguration", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.utilisateurs.lib.utilisateursGeneratorHelper", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.utilisateurs.templates", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.utilisateurs.templates._pagination_list_select", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.utilisateurs.templates.indexSuccess", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.utilisateurs.templates._form_actions", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.utilisateurs.templates._list", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.utilisateurs.templates._list_td_actions", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.utilisateurs.templates._list_th_tabular", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.utilisateurs.templates._pagination", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.utilisateurs.templates._list_td_tabular", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.utilisateurs.actions", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.utilisateurs.actions.actions", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.consoleRRP", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.consoleRRP.config", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.consoleRRP.config.security", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.consoleRRP.templates", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.consoleRRP.templates.indexSuccess", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.consoleRRP.actions", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.consoleRRP.actions.actions", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.groupesSurveillances", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.groupesSurveillances.config", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.groupesSurveillances.config.security", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.groupesSurveillances.config.generator", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.groupesSurveillances.lib", 
+        "value": ""
+    }, 
+    {
+        "id": "root.apps.frontend.modules.groupesSurveillances.lib.groupesSurveillancesGeneratorConfiguration", 
+        "value": ""
+    }
+] ;
+  console.log(data);
+  var root = stratify(data)
+      .sort(function(a, b) { return (a.height - b.height) || a.id.localeCompare(b.id); });
+
+  tree(root);
+
+  var link = g.selectAll(".link")
+      .data(root.descendants().slice(1))
+    .enter().append("path")
+      .attr("class", "link")
+      .attr("d", function(d) {
+        return "M" + d.y + "," + d.x
+            + "C" + (d.parent.y + 100) + "," + d.x
+            + " " + (d.parent.y + 100) + "," + d.parent.x
+            + " " + d.parent.y + "," + d.parent.x;
+      });
+
+  var node = g.selectAll(".node")
+      .data(root.descendants())
+    .enter().append("g")
+      .attr("class", function(d) { return "node" + (d.children ? " node--internal" : " node--leaf"); })
+      .attr("transform", function(d) { return "translate(" + d.y + "," + d.x + ")"; });
+
+  node.append("circle")
+      .attr("r", 2.5);
+
+  node.append("text")
+      .attr("dy", 3)
+      .attr("x", function(d) { return d.children ? -8 : 8; })
+      .style("text-anchor", function(d) { return d.children ? "end" : "start"; })
+      .text(function(d) { return d.id.substring(d.id.lastIndexOf(".") + 1); });
+});
+ </script>
